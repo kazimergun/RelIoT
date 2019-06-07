@@ -67,7 +67,7 @@ public:
    * \param container a NodeContainer
    * \returns .
    */
-  void Install (NodeContainer c);
+  void Install (NodeContainer c) const;
   
   void SetPowerModel (std::string type,
                        std::string n1 = "", const AttributeValue &v1 = EmptyAttributeValue (),
