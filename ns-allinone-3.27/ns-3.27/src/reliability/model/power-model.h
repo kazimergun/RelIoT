@@ -24,6 +24,9 @@
 #include "ns3/node.h"
 #include "ns3/temperature-model.h"
 #include "ns3/performance-model.h"
+#include "device-energy-model-container.h"  // #include "device-energy-model.h"
+#include "ns3/cpu-energy-model.h"
+
 namespace ns3 {
 
 
@@ -69,7 +72,20 @@ public:
    */
   virtual void RegisterPerformanceModel (Ptr<PerformanceModel> performanceModel) = 0;
 
+
+  /**
+   * \param deviceEnergyModelPtr Pointer to device energy model.
+   *
+   * This function appends a device energy model to the end of a list of
+   * DeviceEnergyModelInfo structs.
+   */
+  void AppendDeviceEnergyModel (Ptr<DeviceEnergyModel> deviceEnergyModelPtr);
+
   virtual void SetApplication(std::string n0, const DoubleValue &v0) = 0;
+  virtual void SetDeviceType(std::string devicetype) = 0;
+
+  //virtual void SetAppName (const std::string &appname) = 0;  
+  //virtual void SetDataSize (double datasize) = 0;
 
   /**
    * \returns Current Power.
@@ -94,6 +110,25 @@ public:
 private:
   virtual void DoDispose (void);
 
+
+private:
+  /**
+   * List of device energy models installed on the same node.
+   */
+  DeviceEnergyModelContainer m_models;
+protected:
+
+  /**
+   * This function notifies all DeviceEnergyModel of application run event. It
+   * is called by the child PowerModel class when application is run.
+   */
+  void NotifyAppRun (void);
+
+  /**
+   * This function notifies all DeviceEnergyModel of application terminate event. It
+   * is called by the child PowerMOdel class when application is terminated.
+   */
+  void NotifyAppTerminate (void); 
 };
 
 } // namespace ns3

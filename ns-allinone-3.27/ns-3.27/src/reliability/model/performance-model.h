@@ -40,10 +40,27 @@ public:
   */
   virtual double GetExecTime (void) const;
 
+
+
+
  /**
    * Set Application
    */
   virtual void SetApplication (std::string n0, const DoubleValue &v0) = 0;
+ /**
+   * Set device type
+   */
+  virtual void SetDeviceType (std::string devicetype) = 0;
+
+ /**
+   * Set Packet Size
+   */
+  virtual void SetPacketSize (const DoubleValue &v1) = 0;
+  virtual double GetDataSize (void) const;
+  virtual double GetPacketSize (void) const;
+  virtual void SetDataSize (const DoubleValue &v0) = 0;
+  virtual double GetThroughput (void) const;
+  virtual void SetThroughput (double throughput) = 0;
 
 private:
   virtual void DoDispose (void);

@@ -28,6 +28,8 @@ CpuEnergyModelHelper::CpuEnergyModelHelper ()
   m_cpuEnergy.SetTypeId ("ns3::CpuEnergyModel");
   m_depletionCallback.Nullify ();
   m_rechargedCallback.Nullify ();
+  m_cpuAppRunCallback.Nullify ();
+  m_cpuAppTerminateCallback.Nullify ();
 }
 
 CpuEnergyModelHelper::~CpuEnergyModelHelper ()
@@ -52,6 +54,20 @@ CpuEnergyModelHelper::SetRechargedCallback (
   CpuEnergyModel::CpuEnergyRechargedCallback callback)
 {
   m_rechargedCallback = callback;
+}
+
+void
+CpuEnergyModelHelper::SetCpuAppRunCallback (
+  CpuEnergyModel::CpuAppRunCallback callback)
+{
+  m_cpuAppRunCallback = callback;
+}
+
+void
+CpuEnergyModelHelper::SetCpuAppTerminateCallback (
+  CpuEnergyModel::CpuAppTerminateCallback callback)
+{
+  m_cpuAppTerminateCallback = callback;
 }
 
 void
@@ -105,13 +121,34 @@ CpuEnergyModelHelper::DoInstall (Ptr<NetDevice> device,
     {
       model->SetEnergyRechargedCallback (m_rechargedCallback);
     }
+  if (m_cpuAppRunCallback.IsNull ())
+    {
+      model->SetCpuAppRunCallback (MakeCallback (&WifiPhy::SetSleepMode, wifiPhy));
+    }
+  else
+    {
+      model->SetCpuAppRunCallback (m_cpuAppRunCallback);
+    }
+  if (m_cpuAppTerminateCallback.IsNull ())
+    {
+      model->SetCpuAppTerminateCallback (MakeCallback (&WifiPhy::ResumeFromSleep, wifiPhy));
+    }
+  else
+    {
+      model->SetCpuAppTerminateCallback (m_cpuAppTerminateCallback);
+    }
+    
   // add model to device model list in energy source
   source->AppendDeviceEnergyModel (model);
   // create and register energy model phy listener
   wifiPhy->RegisterListener (model->GetPhyListener ());
   //
   Ptr<PowerModel> m_powerModel2 = node->GetObject<PowerModel>();
+  Ptr<PerformanceModel> m_performanceModel2 = node->GetObject<PerformanceModel>();
   model->SetPowerModel (m_powerModel2);
+  model->SetPerformanceModel (m_performanceModel2);
+  m_powerModel2->AppendDeviceEnergyModel (model);
+  //node->AggregateObject (model);
   return model;
 }
 

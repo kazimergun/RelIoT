@@ -27,12 +27,11 @@ NS_LOG_COMPONENT_DEFINE ("ReliabilityHelper");
 
 ReliabilityHelper::ReliabilityHelper (void)
 {
-  m_power.SetTypeId ("ns3::PowerLinearModel");
+  m_power.SetTypeId ("ns3::AppPowerModel");
   m_performance.SetTypeId ("ns3::PerformanceSimpleModel");
   m_temperature.SetTypeId ("ns3::TemperatureModel");
   m_reliability.SetTypeId ("ns3::ReliabilityTDDBModel");
-  m_appname = "LinearRegression";
-  m_datasize = 1000;
+  m_Tenv = 25.0;
 }
 
 ReliabilityHelper::~ReliabilityHelper (void)
@@ -137,11 +136,30 @@ ReliabilityHelper::SetReliabilityModel (std::string type,
 }
 
 void
-ReliabilityHelper::SetApplication(std::string n0, const DoubleValue &v0)
+ReliabilityHelper::SetApplication(std::string n0, const DoubleValue &v0,const DoubleValue &v1)
 {
-  m_appname = n0;
-  m_datasize = v0.Get();
+  m_appName = n0;
+  m_dataSize = v0.Get();
+  m_packetSize = v1.Get();
+
+  if(m_dataSize<m_packetSize)
+  {
+      NS_FATAL_ERROR ("Application input data size must be greater than packet size:");
+  }
 }
+
+void
+ReliabilityHelper::SetDeviceType(std::string devicetype)
+{
+  m_deviceType = devicetype;
+}
+
+void
+ReliabilityHelper::SetAmbientTemperature(double Tenv)
+{
+  m_Tenv = Tenv;
+}
+
 void
 ReliabilityHelper::Install (Ptr<Node> node)
 {
@@ -199,15 +217,20 @@ ReliabilityHelper::Install (Ptr<Node> node)
       object->AggregateObject (reliabilitymodel);
     }
 
-    temperaturemodel->RegisterReliabilityModel(reliabilitymodel);
+    temperaturemodel->SetTenv(m_Tenv);
+    reliabilitymodel->RegisterTemperatureModel(temperaturemodel);
     powermodel->RegisterPerformanceModel(performancemodel);
     powermodel->RegisterTemperatureModel (temperaturemodel);
-    powermodel->SetApplication(m_appname,m_datasize);
-    
+    powermodel->SetDeviceType(m_deviceType);
+    temperaturemodel->SetDeviceType(m_deviceType);
+    powermodel->SetApplication(m_appName,m_dataSize);
+    performancemodel->SetPacketSize(m_packetSize);
+    // powermodel->SetAppName(m_appName);
+    // powermodel->SetDataSize(m_dataSize);
 }
 
 void 
-ReliabilityHelper::Install (NodeContainer c) const
+ReliabilityHelper::Install (NodeContainer c)
 {
   for (NodeContainer::Iterator i = c.Begin (); i != c.End (); ++i)
     {

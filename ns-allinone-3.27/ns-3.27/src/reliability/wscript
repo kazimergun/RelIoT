@@ -10,7 +10,8 @@ def build(bld):
     module = bld.create_ns3_module('reliability', ['core'])
     module.source = [
         'model/power-model.cc',
-        'model/power-linearmodel.cc',
+        'model/util-power-model.cc',
+        'model/app-power-model.cc',
         'model/temperature-model.cc',
         'model/temperature-simple-model.cc',      
         'model/performance-model.cc',
@@ -29,7 +30,8 @@ def build(bld):
     headers.module = 'reliability'
     headers.source = [
         'model/power-model.h',
-        'model/power-linearmodel.h', 
+        'model/util-power-model.h',
+        'model/app-power-model.h',
         'model/temperature-model.h',
         'model/temperature-simple-model.h',
         'model/performance-model.h',

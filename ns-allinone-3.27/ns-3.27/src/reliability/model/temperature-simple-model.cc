@@ -79,7 +79,8 @@ TemperatureSimpleModel::TemperatureSimpleModel ()
 {
   NS_LOG_FUNCTION (this);
   m_lastUpdateTime = Seconds (0.0);
-  m_reliabilityModel = NULL;      // ReliabilityModel
+  m_avgTemp = 0;
+  m_temperatureCPU = 25.0;
 }
 
 TemperatureSimpleModel::~TemperatureSimpleModel ()
@@ -87,17 +88,18 @@ TemperatureSimpleModel::~TemperatureSimpleModel ()
   NS_LOG_FUNCTION (this);
 }
 
-void
-TemperatureSimpleModel::RegisterReliabilityModel (Ptr<ReliabilityModel> reliabilityModel)
-{
-  m_reliabilityModel = reliabilityModel;
-}
-
 double
 TemperatureSimpleModel::GetTemperature (void) const
 {
   NS_LOG_FUNCTION (this);
   return m_temperatureCPU;
+}
+
+double
+TemperatureSimpleModel::GetAvgTemperature (void) const
+{
+  NS_LOG_FUNCTION (this);
+  return m_avgTemp;
 }
 
 void
@@ -171,14 +173,53 @@ TemperatureSimpleModel::GetTenv (void) const
   return m_Tenv;
 }
 
+
+void
+TemperatureSimpleModel::SetHorizon (Time horizon)
+{
+  NS_LOG_FUNCTION (this);
+  m_avgHorizon = horizon;
+}
+
+void
+TemperatureSimpleModel::SetDeviceType(std::string devicetype)
+{
+  m_deviceType = devicetype;
+  if(m_deviceType == "RaspberryPi")
+  {
+  m_A = 0.14434;
+  m_B = 0.98885;
+  m_C = 0.04894698;
+  m_D = -3.14462264;
+  }
+  else if (m_deviceType == "Arduino")
+  {
+  m_A = 0.763094;
+  m_B = 0.010693;
+  m_C = -0.000679;
+  m_D = 9.795560;
+  }
+  else if (m_deviceType == "Server")
+  {
+  m_A = 0.763094;
+  m_B = 0.010693;
+  m_C = -0.000679;
+  m_D = 9.795560;
+  }
+  else
+  {
+    NS_FATAL_ERROR ("TemperatureSimpleModel:Undefined device type: " << m_deviceType);
+  }
+}
+
 void
 TemperatureSimpleModel::UpdateTemperature (double cpupower)
 {
   NS_LOG_FUNCTION (this << m_temperatureCPU);
   NS_LOG_DEBUG ("TemperatureSimpleModel:Updating temperature" << " at time = " << Simulator::Now ());
+  double alpha = 0.01;
   m_temperatureCPU =  m_A*m_Tenv + m_B*m_temperatureCPU + m_C*cpupower + m_D;
-  m_reliabilityModel->UpdateReliability (cpupower, m_temperatureCPU);
-
+  m_avgTemp = (alpha * m_temperatureCPU) + (1.0 - alpha) * m_avgTemp;
 }
 
 void

@@ -22,7 +22,6 @@
 #include "ns3/ptr.h"
 #include "ns3/type-id.h"
 #include "ns3/node.h"
-#include "ns3/reliability-model.h"
 
 namespace ns3 {
 
@@ -35,13 +34,6 @@ public:
   virtual ~TemperatureModel ();
 
 
-  /**
-   * \param  Pointer to reliability object attached to the device.
-   *
-   * Registers the Reliability Model to Temperature Model.
-   */
-  virtual void RegisterReliabilityModel (Ptr<ReliabilityModel> reliabilityModel) = 0;
-
 
   /**
    * Updates temperature
@@ -53,6 +45,14 @@ public:
    */
   virtual double GetTemperature (void) const;
 
+  /**
+   * \returns Moving average of temperature.
+   */
+  virtual double GetAvgTemperature (void) const;
+
+  virtual void SetDeviceType(std::string devicetype) = 0;
+  virtual void SetTenv(double Tenv) = 0;
+  
 private:
   virtual void DoDispose (void);
 

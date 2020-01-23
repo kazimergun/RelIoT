@@ -27,7 +27,7 @@
 #include "ns3/nstime.h"
 #include "ns3/event-id.h"
 #include "ns3/power-model.h"
-
+#include "ns3/performance-model.h"
 
 
 namespace ns3 {
@@ -217,6 +217,16 @@ public:
   typedef Callback<void> CpuEnergyRechargedCallback;
 
   /**
+   * Callback type for application run handling.
+   */
+  typedef Callback<void> CpuAppRunCallback;
+
+  /**
+   * Callback type for application terminate handling.
+   */
+  typedef Callback<void> CpuAppTerminateCallback;
+
+  /**
    * \brief Get the type ID.
    * \return the object TypeId
    */
@@ -274,10 +284,29 @@ public:
    */
   void SetEnergyRechargedCallback (CpuEnergyRechargedCallback callback);
 
+    /**
+   * \param callback Callback function.
+   *
+   * Sets callback for application run handling.
+   */
+  void SetCpuAppRunCallback (CpuAppRunCallback callback);
+
+  /**
+   * \param callback Callback function.
+   *
+   * Sets callback for application terminate handling.
+   */
+  void SetCpuAppTerminateCallback (CpuAppTerminateCallback callback);
+
   /**
    * \param power model.
    */
   void SetPowerModel (const Ptr<PowerModel> model);
+
+    /**
+   * \param performance model.
+   */
+  void SetPerformanceModel (const Ptr<PerformanceModel> model);
 
 
   /**
@@ -302,7 +331,20 @@ public:
    * Implements DeviceEnergyModel::HandleEnergyRecharged
    */
   void HandleEnergyRecharged (void);
+  
+  /**
+   * \brief Handles application starting.
+   *
+   * Implements 
+   */
+  void HandleCpuAppRun (void);
 
+  /**
+   * \brief Handles application terminating.
+   *
+   * Implements 
+   */
+  void HandleCpuAppTerminate (void);
   /**
    * \returns Pointer to the PHY listener.
    */
@@ -327,16 +369,25 @@ private:
    */
   void SetWifiRadioState (const WifiPhy::State state);
 
+  /**
+   * Sets current state to IDLE.
+   */
+  void SetWifiToIdle (void);
+
   Ptr<EnergySource> m_source; ///< energy source
   Ptr<PowerModel> m_powerModel; ///< current model
+  Ptr<PerformanceModel> m_performanceModel; ///< current model
 
   // Member variables.
   double m_idlePowerW;
-
+  double m_dataSize;
+  double m_packetSize;
+  double m_count;
+  double m_numberOfPackets;
   /// This variable keeps track of the total energy consumed by this model.
   TracedValue<double> m_totalEnergyConsumption;
   EventId m_powerUpdateEvent;            // power update event
-
+  EventId m_endSleepEvent;
   // State variables.
   WifiPhy::State m_currentState;  ///< current state the radio is in
   Time m_lastUpdateTime;          ///< time stamp of previous energy update
@@ -349,6 +400,12 @@ private:
 
   /// Energy recharged callback
   CpuEnergyRechargedCallback m_energyRechargedCallback;
+
+    /// App Run callback
+  CpuAppRunCallback m_cpuAppRunCallback;
+
+  /// App Terminate callback
+  CpuAppTerminateCallback m_cpuAppTerminateCallback;
 
   /// WifiPhy listener
   CpuEnergyModelPhyListener *m_listener;

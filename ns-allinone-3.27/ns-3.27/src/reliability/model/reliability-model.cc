@@ -51,7 +51,7 @@ ReliabilityModel::GetReliability (void) const
 }
 
 void
-ReliabilityModel::UpdateReliability (double cpupower, double temperature)
+ReliabilityModel::UpdateReliability (void)
 {
   NS_LOG_FUNCTION (this);
 

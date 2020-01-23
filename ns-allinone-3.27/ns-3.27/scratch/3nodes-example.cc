@@ -16,7 +16,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  */
-
+#include "ns3/gnuplot.h"
 #include "ns3/core-module.h"
 #include "ns3/network-module.h"
 #include "ns3/mobility-module.h"
@@ -32,7 +32,43 @@
 
 using namespace ns3;
 
+std::string fileNameWithNoExtension1 = "power_plot";
+std::string fileNameWithNoExtension2 = "temperature_plot";
+std::string fileNameWithNoExtension3 = "totalenergy_plot";
+std::string graphicsFileName1        = fileNameWithNoExtension1 + ".png";
+std::string graphicsFileName2        = fileNameWithNoExtension2 + ".png";
+std::string graphicsFileName3        = fileNameWithNoExtension3 + ".png";
+std::string plotFileName1            = fileNameWithNoExtension1 + ".plt";
+std::string plotFileName2            = fileNameWithNoExtension2 + ".plt";
+std::string plotFileName3            = fileNameWithNoExtension3 + ".plt";
+std::string plotTitle1               = "Power vs Time";
+std::string plotTitle2               = "Temperature vs Time";
+std::string plotTitle3               = "Total Energy Consumption vs Time";
+std::string data1Title               = "Power";
+std::string data2Title               = "Temperature";
+std::string data3Title               = "Total Energy";
+
+// Instantiate the plot and set its title.
+Gnuplot plot1 (graphicsFileName1);
+Gnuplot plot2 (graphicsFileName2);
+Gnuplot plot3 (graphicsFileName3);
+// Instantiate the dataset, set its title, and make the points be
+// plotted along with connecting lines.
+Gnuplot2dDataset dataset1;
+Gnuplot2dDataset dataset2;
+Gnuplot2dDataset dataset3;
+
+
+
 NS_LOG_COMPONENT_DEFINE ("ReliabilityExample");
+
+
+double totalPower = 0;
+double totalTemperature = 0;
+double averagePower = 0;
+double averageTemperature = 0;
+double count = 0;
+double totalEnergy = 0;
 
 static inline std::string
 PrintReceivedPacket (Address& from)
@@ -66,6 +102,29 @@ ReceivePacket (Ptr<Socket> socket)
         }
     }
 }
+
+
+void
+Plotter(void)
+{
+  // Add the dataset to the plot.
+  plot1.AddDataset (dataset1);
+  plot2.AddDataset (dataset2);
+  plot3.AddDataset (dataset3);
+  // Open the plot file.
+  std::ofstream plotFile1 (plotFileName1.c_str());
+  std::ofstream plotFile2 (plotFileName2.c_str());
+  std::ofstream plotFile3 (plotFileName3.c_str());
+  // Write the plot file.
+  plot1.GenerateOutput (plotFile1);
+  plot2.GenerateOutput (plotFile2);
+  plot3.GenerateOutput (plotFile3);
+  // Close the plot file.
+  plotFile1.close ();
+  plotFile2.close ();
+  plotFile3.close ();
+}
+
 
 /**
  * \param socket Pointer to socket.
@@ -105,49 +164,92 @@ void
 TotalEnergy (double oldValue, double totalEnergy)
 {
   NS_LOG_UNCOND (Simulator::Now ().GetSeconds ()
-                 << "s Total energy consumed by radio = " << totalEnergy << "J");
+                 << "s Total energy consumed = " << totalEnergy << "J");
 }
 
 void
-PrintInfo (Ptr<Node> node)
+PrintInfo (Ptr<Node> node, Ptr<DeviceEnergyModel> cpuEnergyModel)
 {
 
-  std::cout<<"At time "<< Simulator::Now().GetSeconds()<<", NodeId = "<<node->GetId();
+  std::cout<< "At time "<< Simulator::Now().GetSeconds()<<", NodeId = "<<node->GetId();
   std::cout << " CPU Power = " << node->GetObject<PowerModel>()->GetPower();
-  std::cout << " Performance = " << node->GetObject<PerformanceModel>()->GetThroughput();
   std::cout << " Temperature = " << node->GetObject<TemperatureModel>()->GetTemperature()<<std::endl;
   std::cout << " Reliability = " << node->GetObject<ReliabilityModel>()->GetReliability()<<std::endl;
+  //std::cout << " Total Energy Consumption = " << node->GetObject<DeviceEnergyModel>()->GetTotalEnergyConsumption()<<std::endl;
+  //std::cout << "Total Energy Consumption = " << cpuEnergyModel->GetTotalEnergyConsumption()<<std::endl;
+  std::cout << "Total Energy Consumption = " << totalEnergy << std::endl;
+  dataset1.Add(Simulator::Now ().GetSeconds (), node->GetObject<PowerModel>()->GetPower());
+  dataset2.Add(Simulator::Now ().GetSeconds (), node->GetObject<TemperatureModel>()->GetTemperature());
+  
+  totalPower += node->GetObject<PowerModel>()->GetPower();
+  totalTemperature += node->GetObject<TemperatureModel>()->GetTemperature();
+  totalEnergy += 0.5*(node->GetObject<PowerModel>()->GetPower());
+  count +=1;
+  dataset3.Add(Simulator::Now ().GetSeconds (), totalEnergy);
+
 
   if (!Simulator::IsFinished ())
   {
-    Simulator::Schedule (Seconds (0.5),&PrintInfo,node);
+    Simulator::Schedule (Seconds (0.5),&PrintInfo,node,cpuEnergyModel);
   }
+}
+
+void
+PrintAverages(void)
+{
+  
+  averagePower = totalPower/count;
+  averageTemperature = totalTemperature/count;
+  std::cout << "Average power = " << averagePower << std::endl;
+  std::cout << "Average temperature = " << averageTemperature << std::endl;
 }
 
 
 int
 main (int argc, char *argv[])
 {
+
+  plot1.SetTitle (plotTitle1);
+  plot2.SetTitle (plotTitle2);
+  plot2.SetTitle (plotTitle3);
+  // Make the graphics file, which the plot file will create when it
+  // is used with Gnuplot, be a PNG file.
+  plot1.SetTerminal ("png");
+  plot2.SetTerminal ("png");
+  plot3.SetTerminal ("png");
+  // Set the labels for each axis.
+  plot1.SetLegend ("time(s)", "Power(W)");
+  plot2.SetLegend ("time(s)", "Temperature(°C)");
+  plot3.SetLegend ("time(s)", "Total Energy(J)");
+
+  dataset1.SetTitle (data1Title);
+  dataset1.SetStyle (Gnuplot2dDataset::LINES_POINTS);
+  dataset2.SetTitle (data2Title);
+  dataset2.SetStyle (Gnuplot2dDataset::LINES_POINTS);
+  dataset3.SetTitle (data3Title);
+  dataset3.SetStyle (Gnuplot2dDataset::LINES_POINTS);
   /*
   LogComponentEnable ("CpuEnergyModel", LOG_LEVEL_DEBUG);
-  LogComponentEnable ("PowerModel", LOG_LEVEL_DEBUG);
+  LogComponentEnable ("PowerLinearModel", LOG_LEVEL_DEBUG);
   LogComponentEnable ("TemperatureSimpleModel", LOG_LEVEL_DEBUG);
   LogComponentEnable ("ReliabilityTDDBModel", LOG_LEVEL_DEBUG);
    */
+  //LogComponentEnable ("CpuEnergyModel", LOG_LEVEL_DEBUG);
   LogComponentEnable ("AppPowerModel", LOG_LEVEL_DEBUG);
-  
- 
+  //LogComponentEnable ("PowerModel", LOG_LEVEL_DEBUG);
+  //LogComponentEnable ("TemperatureSimpleModel", LOG_LEVEL_DEBUG);
 
   std::string phyMode ("DsssRate1Mbps");
   double Prss = -80;            // dBm
-  uint32_t PpacketSize = 200;   // bytes
+  uint32_t PpacketSize = 2000;   // bytes
   bool verbose = false;
-  uint32_t dataSize = 10000;   // bytes
+  uint32_t dataSize = 100000;   // bytes
   // simulation parameters
-  uint32_t numPackets = 10000;  // number of packets to send
-  double interval = 1;          // seconds
+  uint32_t numPackets = 1000000;  // number of packets to send
+  double interval = 0.0005;          // seconds
   double startTime = 0.0;       // seconds
   double distanceToRx = 100.0;  // meters
+  double Tenv = 25.0;
   /*
    * This is a magic number used to set the transmit power, based on other
    * configuration.
@@ -178,10 +280,12 @@ main (int argc, char *argv[])
                       StringValue (phyMode));
 
 
-  Ptr<Node> node0 = CreateObject<Node>();
-  Ptr<Node> node1 = CreateObject<Node>();
-  NodeContainer networkNodes = NodeContainer(node0);
-  networkNodes.Add(node1);
+  Ptr<Node> sourceNode = CreateObject<Node>();
+  Ptr<Node> rpiNode = CreateObject<Node>();
+  Ptr<Node> serverNode = CreateObject<Node>();
+  NodeContainer networkNodes = NodeContainer(sourceNode);
+  networkNodes.Add(rpiNode);
+  networkNodes.Add(serverNode);
 
   // The below set of helpers will help us to put together the wifi NICs we want
   WifiHelper wifi;
@@ -218,9 +322,12 @@ main (int argc, char *argv[])
 
   /** install PHY + MAC **/
   //NetDeviceContainer devices = wifi.Install (wifiPhy, wifiMac, networkNodes);
-  NetDeviceContainer device0 = wifi.Install (wifiPhy, wifiMac, node0);
-  NetDeviceContainer device1 = wifi.Install (wifiPhy, wifiMac, node1);
-  NetDeviceContainer devices = NetDeviceContainer(device0, device1);
+  NetDeviceContainer sourceDevice = wifi.Install (wifiPhy, wifiMac, sourceNode);
+  NetDeviceContainer rpiDevice = wifi.Install (wifiPhy, wifiMac, rpiNode);
+  NetDeviceContainer serverDevice = wifi.Install (wifiPhy, wifiMac, serverNode);
+  NetDeviceContainer devices = NetDeviceContainer(sourceDevice, rpiDevice);
+  devices.Add(serverDevice);
+
 
   /** mobility **/
   MobilityHelper mobility;
@@ -231,27 +338,71 @@ main (int argc, char *argv[])
   mobility.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
   mobility.Install (networkNodes);
 
-  /** Energy Model **/
+//   /** Energy Model **/
+//   /***************************************************************************/
+//   /* energy source */
+//   BasicEnergySourceHelper basicSourceHelper;
+//   // configure energy source
+//   basicSourceHelper.Set ("BasicEnergySourceInitialEnergyJ", DoubleValue (100000));
+//   // install source
+//   EnergySourceContainer rpiSource = basicSourceHelper.Install (rpiNode);
+//   /* reliability stack */
+//   ReliabilityHelper reliabilityHelper;
+//   reliabilityHelper.SetDeviceType("RaspberryPi");
+//   reliabilityHelper.SetPowerModel("ns3::AppPowerModel");
+//   reliabilityHelper.SetPerformanceModel("ns3::PerformanceSimpleModel");
+//   reliabilityHelper.SetTemperatureModel("ns3::TemperatureSimpleModel");
+//   reliabilityHelper.SetAmbientTemperature(Tenv);
+//   reliabilityHelper.SetReliabilityModel("ns3::ReliabilityTDDBModel");
+//   reliabilityHelper.SetApplication("AdaBoost",dataSize,PpacketSize);
+//   reliabilityHelper.Install(rpiNode);
+//   /* cpu energy model */
+//    CpuEnergyModelHelper cpuEnergyHelper;
+//    DeviceEnergyModelContainer deviceModels = cpuEnergyHelper.Install(rpiDevice, rpiSource);
+//   /***************************************************************************/
+
+//   Ptr<BasicEnergySource> basicSourcePtr = DynamicCast<BasicEnergySource> (rpiSource.Get (0));
+//  // basicSourcePtr->TraceConnectWithoutContext ("RemainingEnergy", MakeCallback (&RemainingEnergy));
+//   NS_ASSERT (basicSourcePtr != NULL);
+//     // device energy model
+//   Ptr<DeviceEnergyModel> cpuEnergyModelPtr =
+//     basicSourcePtr->FindDeviceEnergyModels ("ns3::CpuEnergyModel").Get (0);
+//   NS_ASSERT (cpuEnergyModelPtr != NULL);
+//   //cpuEnergyModelPtr->TraceConnectWithoutContext ("TotalEnergyConsumption", MakeCallback (&TotalEnergy));
+//   /***************************************************************************/
+
+
+    /** Energy Model **/
   /***************************************************************************/
   /* energy source */
   BasicEnergySourceHelper basicSourceHelper;
   // configure energy source
   basicSourceHelper.Set ("BasicEnergySourceInitialEnergyJ", DoubleValue (100000));
   // install source
-  EnergySourceContainer source1 = basicSourceHelper.Install (node1);
+  EnergySourceContainer serverSource = basicSourceHelper.Install (serverNode);
   /* reliability stack */
   ReliabilityHelper reliabilityHelper;
-  reliabilityHelper.SetDeviceType("RaspberryPi");
+  reliabilityHelper.SetDeviceType("Server");
   reliabilityHelper.SetPowerModel("ns3::AppPowerModel");
   reliabilityHelper.SetPerformanceModel("ns3::PerformanceSimpleModel");
   reliabilityHelper.SetTemperatureModel("ns3::TemperatureSimpleModel");
+  reliabilityHelper.SetAmbientTemperature(Tenv);
   reliabilityHelper.SetReliabilityModel("ns3::ReliabilityTDDBModel");
   reliabilityHelper.SetApplication("AdaBoost",dataSize,PpacketSize);
-  reliabilityHelper.Install(node1);
+  reliabilityHelper.Install(serverNode);
   /* cpu energy model */
    CpuEnergyModelHelper cpuEnergyHelper;
-   DeviceEnergyModelContainer deviceModels = cpuEnergyHelper.Install(device1, source1);
+   DeviceEnergyModelContainer deviceModels = cpuEnergyHelper.Install(serverDevice, serverSource);
   /***************************************************************************/
+
+  Ptr<BasicEnergySource> basicSourcePtr = DynamicCast<BasicEnergySource> (serverSource.Get (0));
+ // basicSourcePtr->TraceConnectWithoutContext ("RemainingEnergy", MakeCallback (&RemainingEnergy));
+  NS_ASSERT (basicSourcePtr != NULL);
+    // device energy model
+  Ptr<DeviceEnergyModel> cpuEnergyModelPtr =
+    basicSourcePtr->FindDeviceEnergyModels ("ns3::CpuEnergyModel").Get (0);
+  NS_ASSERT (cpuEnergyModelPtr != NULL);
+  //cpuEnergyModelPtr->TraceConnectWithoutContext ("TotalEnergyConsumption", MakeCallback (&TotalEnergy));
 
 
   /** Internet stack **/
@@ -264,18 +415,19 @@ main (int argc, char *argv[])
   Ipv4InterfaceContainer i = ipv4.Assign (devices);
 
   TypeId tid = TypeId::LookupByName ("ns3::UdpSocketFactory");
-  Ptr<Socket> recvSink = Socket::CreateSocket (node1, tid);  // node 1, receiver
+  Ptr<Socket> recvSink = Socket::CreateSocket (serverNode, tid);  // node 1, receiver
   InetSocketAddress local = InetSocketAddress (Ipv4Address::GetAny (), 80);
   recvSink->Bind (local);
-  recvSink->SetRecvCallback (MakeCallback (&ReceivePacket));
+  //recvSink->SetRecvCallback (MakeCallback (&ReceivePacket));
 
-  Ptr<Socket> source = Socket::CreateSocket (node0, tid);    // node 0, sender
+  Ptr<Socket> source = Socket::CreateSocket (sourceNode, tid);    // node 0, sender
   InetSocketAddress remote = InetSocketAddress (Ipv4Address::GetBroadcast (), 80);
   source->SetAllowBroadcast (true);
   source->Connect (remote);
 
 
-  PrintInfo (node1);
+//   PrintInfo (rpiNode,cpuEnergyModelPtr);
+  PrintInfo (serverNode,cpuEnergyModelPtr);
 
 
   /** simulation setup **/
@@ -284,6 +436,9 @@ main (int argc, char *argv[])
                        networkNodes.Get (0), numPackets, interPacketInterval);
 
   Simulator::Stop (Seconds (100.0));
+  Simulator::Schedule (Seconds(99.0), &Plotter);
+  Simulator::Schedule (Seconds(99.9), &PrintAverages);
+
   Simulator::Run ();
   Simulator::Destroy ();
 

@@ -69,6 +69,22 @@ public:
   void SetRechargedCallback (
     CpuEnergyModel::CpuEnergyRechargedCallback callback);
 
+    /**
+   * \param callback Callback function forcpu app run handling.
+   *
+   * Sets the callback to be invoked when app is started.
+   */
+  void SetCpuAppRunCallback (
+    CpuEnergyModel::CpuAppRunCallback callback);
+
+  /**
+   * \param callback Callback function for terminating app.
+   *
+   * Sets the callback to be invoked when app is finished executing.
+   */
+  void SetCpuAppTerminateCallback (
+    CpuEnergyModel::CpuAppTerminateCallback callback);
+
   /**
    *
    * Set power model for the Cpu Energy Model
@@ -90,6 +106,8 @@ private:
   ObjectFactory m_cpuEnergy; ///< cpu energy
   CpuEnergyModel::CpuEnergyDepletionCallback m_depletionCallback; ///< cpu energy depletion callback
   CpuEnergyModel::CpuEnergyRechargedCallback m_rechargedCallback; ///< cpu energy recharged callback
+  CpuEnergyModel::CpuAppRunCallback m_cpuAppRunCallback; ///< cpu application run callback
+  CpuEnergyModel::CpuAppTerminateCallback m_cpuAppTerminateCallback; ///< cpu application termination callback
   Ptr<PowerModel> m_powerModel; ///< power model
 
 };

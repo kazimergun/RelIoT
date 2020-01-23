@@ -16,7 +16,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  */
-
+#include "ns3/gnuplot.h"
 #include "ns3/core-module.h"
 #include "ns3/network-module.h"
 #include "ns3/mobility-module.h"
@@ -32,7 +32,37 @@
 
 using namespace ns3;
 
+std::string fileNameWithNoExtension1 = "power_plot";
+std::string fileNameWithNoExtension2 = "temperature_plot";
+std::string graphicsFileName1        = fileNameWithNoExtension1 + ".png";
+std::string graphicsFileName2        = fileNameWithNoExtension2 + ".png";
+std::string plotFileName1            = fileNameWithNoExtension1 + ".plt";
+std::string plotFileName2            = fileNameWithNoExtension2 + ".plt";
+std::string plotTitle1               = "RPi Power vs Time";
+std::string plotTitle2               = "RPi Temperature vs Time";
+std::string data1Title               = "RPi Power";
+std::string data2Title               = "Rpi Temperature";
+
+// Instantiate the plot and set its title.
+Gnuplot plot1 (graphicsFileName1);
+Gnuplot plot2 (graphicsFileName2);
+
+// Instantiate the dataset, set its title, and make the points be
+// plotted along with connecting lines.
+Gnuplot2dDataset dataset1;
+Gnuplot2dDataset dataset2;
+
+
+
+
 NS_LOG_COMPONENT_DEFINE ("ReliabilityExample");
+
+
+double totalPower = 0;
+double totalTemperature = 0;
+double averagePower = 0;
+double averageTemperature = 0;
+double count = 0;
 
 static inline std::string
 PrintReceivedPacket (Address& from)
@@ -66,6 +96,29 @@ ReceivePacket (Ptr<Socket> socket)
         }
     }
 }
+
+
+void
+Plotter(void)
+{
+  // Add the dataset to the plot.
+  plot1.AddDataset (dataset1);
+  plot2.AddDataset (dataset2);
+
+  // Open the plot file.
+  std::ofstream plotFile1 (plotFileName1.c_str());
+  std::ofstream plotFile2 (plotFileName2.c_str());
+
+  // Write the plot file.
+  plot1.GenerateOutput (plotFile1);
+  plot2.GenerateOutput (plotFile2);
+
+  // Close the plot file.
+  plotFile1.close ();
+  plotFile2.close ();
+
+}
+
 
 /**
  * \param socket Pointer to socket.
@@ -112,42 +165,77 @@ void
 PrintInfo (Ptr<Node> node)
 {
 
-  std::cout<<"At time "<< Simulator::Now().GetSeconds()<<", NodeId = "<<node->GetId();
+  std::cout<< "At time "<< Simulator::Now().GetSeconds()<<", NodeId = "<<node->GetId();
   std::cout << " CPU Power = " << node->GetObject<PowerModel>()->GetPower();
-  std::cout << " Performance = " << node->GetObject<PerformanceModel>()->GetThroughput();
   std::cout << " Temperature = " << node->GetObject<TemperatureModel>()->GetTemperature()<<std::endl;
   std::cout << " Reliability = " << node->GetObject<ReliabilityModel>()->GetReliability()<<std::endl;
 
+  dataset1.Add(Simulator::Now ().GetSeconds (), node->GetObject<PowerModel>()->GetPower());
+  dataset2.Add(Simulator::Now ().GetSeconds (), node->GetObject<TemperatureModel>()->GetTemperature());
+  
+  totalPower += node->GetObject<PowerModel>()->GetPower();
+  totalTemperature += node->GetObject<TemperatureModel>()->GetTemperature();
+  count +=1;
   if (!Simulator::IsFinished ())
   {
     Simulator::Schedule (Seconds (0.5),&PrintInfo,node);
   }
 }
 
+void
+PrintAverages(void)
+{
+  
+  averagePower = totalPower/count;
+  averageTemperature = totalTemperature/count;
+  std::cout << "Average power = " << averagePower << std::endl;
+  std::cout << "Average temperature = " << averageTemperature;
+}
+
 
 int
 main (int argc, char *argv[])
 {
+
+  plot1.SetTitle (plotTitle1);
+  plot2.SetTitle (plotTitle2);
+
+  // Make the graphics file, which the plot file will create when it
+  // is used with Gnuplot, be a PNG file.
+  plot1.SetTerminal ("png");
+  plot2.SetTerminal ("png");
+
+  // Set the labels for each axis.
+  plot1.SetLegend ("time(s)", "Power(W)");
+  plot2.SetLegend ("time(s)", "Temperature(°C)");
+
+  dataset1.SetTitle (data1Title);
+  dataset1.SetStyle (Gnuplot2dDataset::LINES_POINTS);
+  dataset2.SetTitle (data2Title);
+  dataset2.SetStyle (Gnuplot2dDataset::LINES_POINTS);
+
   /*
   LogComponentEnable ("CpuEnergyModel", LOG_LEVEL_DEBUG);
-  LogComponentEnable ("PowerModel", LOG_LEVEL_DEBUG);
+  LogComponentEnable ("PowerLinearModel", LOG_LEVEL_DEBUG);
   LogComponentEnable ("TemperatureSimpleModel", LOG_LEVEL_DEBUG);
   LogComponentEnable ("ReliabilityTDDBModel", LOG_LEVEL_DEBUG);
    */
+  //LogComponentEnable ("CpuEnergyModel", LOG_LEVEL_DEBUG);
   LogComponentEnable ("AppPowerModel", LOG_LEVEL_DEBUG);
-  
- 
+  //LogComponentEnable ("PowerModel", LOG_LEVEL_DEBUG);
+  //LogComponentEnable ("TemperatureSimpleModel", LOG_LEVEL_DEBUG);
 
   std::string phyMode ("DsssRate1Mbps");
   double Prss = -80;            // dBm
   uint32_t PpacketSize = 200;   // bytes
   bool verbose = false;
-  uint32_t dataSize = 10000;   // bytes
+  uint32_t dataSize = 1000000;   // bytes
   // simulation parameters
-  uint32_t numPackets = 10000;  // number of packets to send
-  double interval = 1;          // seconds
+  uint32_t numPackets = 10000000;  // number of packets to send
+  double interval = 0.001;          // seconds
   double startTime = 0.0;       // seconds
   double distanceToRx = 100.0;  // meters
+  double Tenv = 25.0;
   /*
    * This is a magic number used to set the transmit power, based on other
    * configuration.
@@ -245,6 +333,7 @@ main (int argc, char *argv[])
   reliabilityHelper.SetPowerModel("ns3::AppPowerModel");
   reliabilityHelper.SetPerformanceModel("ns3::PerformanceSimpleModel");
   reliabilityHelper.SetTemperatureModel("ns3::TemperatureSimpleModel");
+  reliabilityHelper.SetAmbientTemperature(Tenv);
   reliabilityHelper.SetReliabilityModel("ns3::ReliabilityTDDBModel");
   reliabilityHelper.SetApplication("AdaBoost",dataSize,PpacketSize);
   reliabilityHelper.Install(node1);
@@ -283,7 +372,10 @@ main (int argc, char *argv[])
   Simulator::Schedule (Seconds (startTime), &GenerateTraffic, source, PpacketSize,
                        networkNodes.Get (0), numPackets, interPacketInterval);
 
-  Simulator::Stop (Seconds (100.0));
+  Simulator::Stop (Seconds (1000.0));
+  Simulator::Schedule (Seconds(999.0), &Plotter);
+  Simulator::Schedule (Seconds(999.9), &PrintAverages);
+
   Simulator::Run ();
   Simulator::Destroy ();
 

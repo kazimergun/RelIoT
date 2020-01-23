@@ -64,12 +64,14 @@ CpuEnergyModel::CpuEnergyModel ()
   m_nPendingChangeState = 0;
   m_isSupersededChangeState = false;
   m_energyDepletionCallback.Nullify ();
+  m_cpuAppRunCallback.Nullify ();
+  m_count = 0;
+  m_numberOfPackets = 0;
   m_source = NULL;
   m_powerModel = NULL;
   // set callback for WifiPhy listener
   m_listener = new CpuEnergyModelPhyListener;
   m_listener->SetChangeStateCallback (MakeCallback (&DeviceEnergyModel::ChangeState, this));
-
 
 }
 
@@ -142,6 +144,32 @@ CpuEnergyModel::SetEnergyRechargedCallback (
     }
   m_energyRechargedCallback = callback;
 }
+
+void
+CpuEnergyModel::SetCpuAppRunCallback (
+  CpuAppRunCallback callback)
+{
+  NS_LOG_FUNCTION (this);
+  if (callback.IsNull ())
+    {
+      NS_LOG_DEBUG ("CpuEnergyModel:Setting CPU app terminate callback!");
+    }
+  m_cpuAppRunCallback = callback;
+}
+
+void
+CpuEnergyModel::SetCpuAppTerminateCallback (
+  CpuAppTerminateCallback callback)
+{
+  NS_LOG_FUNCTION (this);
+  if (callback.IsNull ())
+    {
+      NS_LOG_DEBUG ("CpuEnergyModel:Setting CPU App Terminate callback!");
+    }
+  m_cpuAppTerminateCallback = callback;
+}
+
+
 void
 CpuEnergyModel::SetPowerModel (const Ptr<PowerModel> model)
 {
@@ -149,6 +177,14 @@ CpuEnergyModel::SetPowerModel (const Ptr<PowerModel> model)
   m_idlePowerW = m_powerModel->GetIdlePowerW();
 }
 
+void
+CpuEnergyModel::SetPerformanceModel (const Ptr<PerformanceModel> model)
+{
+  m_performanceModel = model;
+  m_dataSize = m_performanceModel->GetDataSize();
+  m_packetSize = m_performanceModel->GetPacketSize();
+  m_numberOfPackets = m_dataSize/m_packetSize;
+}
 
 void
 CpuEnergyModel::ChangeState (int newState)
@@ -160,7 +196,6 @@ CpuEnergyModel::ChangeState (int newState)
 
   // energy to decrease = current * voltage * time
   double energyToDecrease = 0.0;
-  // double supplyVoltage = m_source->GetSupplyVoltage ();
   switch (m_currentState)
     {
     case WifiPhy::IDLE:
@@ -173,16 +208,20 @@ CpuEnergyModel::ChangeState (int newState)
       energyToDecrease = duration.GetSeconds () * m_idlePowerW;
       break;
     case WifiPhy::RX:
+      m_count += 1;
+      if(m_count>=m_numberOfPackets){
       if (m_powerModel->GetState()==0)
-      {
-        NS_LOG_DEBUG ("CpuEnergyModel:Running app" <<
-                        " at time = " << Simulator::Now ());
-        m_powerModel->RunApp();
-        energyToDecrease = m_powerModel->GetEnergy();
-      } else {
-        NS_LOG_DEBUG ("CpuEnergyModel: BUSY, an app is still running" <<
-                        " at time = " << Simulator::Now ());        
-        energyToDecrease = 0;
+        {
+          NS_LOG_DEBUG ("CpuEnergyModel:Running app" <<
+                          " at time = " << Simulator::Now ());
+          m_powerModel->RunApp();
+          energyToDecrease = m_powerModel->GetEnergy();
+        } else {
+          NS_LOG_DEBUG ("CpuEnergyModel: BUSY, an app is still running" <<
+                          " at time = " << Simulator::Now ());        
+          energyToDecrease = 0;
+        }
+      m_count = 0;
       }
       break;
     case WifiPhy::SWITCHING:
@@ -231,26 +270,54 @@ CpuEnergyModel::ChangeState (int newState)
 void
 CpuEnergyModel::HandleEnergyDepletion (void)
 {
-  NS_LOG_FUNCTION (this);
-  NS_LOG_DEBUG ("CpuEnergyModel:Energy is depleted!");
-  // invoke energy depletion callback, if set.
-  if (!m_energyDepletionCallback.IsNull ())
-    {
-      m_energyDepletionCallback ();
-    }
+  // NS_LOG_FUNCTION (this);
+  NS_LOG_DEBUG ("CpuEnergyModel:HandleEnergyDepletion!");
+  // // invoke energy depletion callback, if set.
+  // if (!m_energyDepletionCallback.IsNull ())
+  //   {
+  //     m_energyDepletionCallback ();
+  //   }
+  HandleCpuAppRun();
+
 }
 
 void
 CpuEnergyModel::HandleEnergyRecharged (void)
 {
+//   NS_LOG_FUNCTION (this);
+  NS_LOG_DEBUG ("CpuEnergyModel:HandleEnergyRecharged!");
+//   // invoke energy recharged callback, if set.
+//   if (!m_energyRechargedCallback.IsNull ())
+//     {
+//       m_energyRechargedCallback ();
+//     }
+  HandleCpuAppTerminate();
+}
+
+void
+CpuEnergyModel::HandleCpuAppRun (void)
+{
   NS_LOG_FUNCTION (this);
-  NS_LOG_DEBUG ("CpuEnergyModel:Energy is recharged!");
-  // invoke energy recharged callback, if set.
-  if (!m_energyRechargedCallback.IsNull ())
+  NS_LOG_DEBUG ("CpuEnergyModel:App is starting!");
+  // invoke energy depletion callback, if set.
+  if (!m_cpuAppRunCallback.IsNull ())
     {
-      m_energyRechargedCallback ();
+      m_cpuAppRunCallback ();
     }
 }
+
+void
+CpuEnergyModel::HandleCpuAppTerminate (void)
+{
+  NS_LOG_FUNCTION (this);
+  NS_LOG_DEBUG ("CpuEnergyModel:App has finished executing!");
+  // invoke energy recharged callback, if set.
+  if (!m_cpuAppTerminateCallback.IsNull ())
+    {
+      m_cpuAppTerminateCallback ();
+    }
+}
+
 
 CpuEnergyModelPhyListener *
 CpuEnergyModel::GetPhyListener (void)
@@ -271,6 +338,8 @@ CpuEnergyModel::DoDispose (void)
   NS_LOG_FUNCTION (this);
   m_source = NULL;
   m_energyDepletionCallback.Nullify ();
+  m_cpuAppRunCallback.Nullify ();
+
 }
 
 double
@@ -329,6 +398,7 @@ CpuEnergyModel::SetWifiRadioState (const WifiPhy::State state)
 
 
 
+
 // -------------------------------------------------------------------------- //
 
 CpuEnergyModelPhyListener::CpuEnergyModelPhyListener ()
@@ -349,6 +419,7 @@ CpuEnergyModelPhyListener::SetChangeStateCallback (DeviceEnergyModel::ChangeStat
   NS_ASSERT (!callback.IsNull ());
   m_changeStateCallback = callback;
 }
+
 
 
 void

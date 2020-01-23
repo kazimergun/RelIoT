@@ -22,7 +22,6 @@
 #include "ns3/nstime.h"
 #include "ns3/event-id.h"
 #include "ns3/traced-value.h"
-#include "ns3/reliability-model.h"
 #include "ns3/temperature-model.h"
 
 namespace ns3 {
@@ -35,12 +34,6 @@ public:
   TemperatureSimpleModel ();
   virtual ~TemperatureSimpleModel ();
 
-  /**
-   * \param  Pointer to reliability object attached to the device.
-   *
-   * Registers the Reliability Model to Temperature Model.
-   */
-  virtual void RegisterReliabilityModel (Ptr<ReliabilityModel> reliabilityModel);
 
 
   // Setter & getters.
@@ -54,6 +47,8 @@ public:
   virtual void SetD (double D);
   virtual double GetTenv (void) const;
   virtual void SetTenv (double Tenv);
+  virtual void SetHorizon (Time horizon);
+  virtual void SetDeviceType(std::string devicetype);
 
   /**
    * \brief Updates the temperature.
@@ -66,12 +61,16 @@ public:
    */
   virtual double GetTemperature (void) const;
 
+  /**
+   * \returns Average.
+   */
+  virtual double GetAvgTemperature (void) const;
+
 private:
   virtual void DoDispose (void);
 
 private:
 
-  Ptr<ReliabilityModel> m_reliabilityModel;
   TracedValue<double> m_temperatureCPU;
   Time m_lastUpdateTime;          // time stamp of previous temperature update
   double m_Tenv;
@@ -79,6 +78,9 @@ private:
   double m_B;
   double m_C;
   double m_D;
+  Time m_avgHorizon;
+  double m_avgTemp;
+  std::string m_deviceType;
 };
 
 } // namespace ns3

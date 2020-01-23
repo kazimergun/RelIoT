@@ -49,7 +49,17 @@ double
 PowerModel::GetPower (void) const
 {
   NS_LOG_FUNCTION (this);
-  return 0.0;
+  return 2.8;
+}
+
+void
+PowerModel::AppendDeviceEnergyModel (Ptr<DeviceEnergyModel> deviceEnergyModelPtr)
+{
+  NS_LOG_FUNCTION (this << deviceEnergyModelPtr);
+  NS_ASSERT (deviceEnergyModelPtr != NULL); // model must exist
+  m_models.Add (deviceEnergyModelPtr);
+  NS_LOG_DEBUG ("PowerModel: Appending power model");
+  
 }
 
 void
@@ -71,12 +81,60 @@ PowerModel::UpdatePower ()
   NS_LOG_FUNCTION (this);
 }
 
+/*
+ * Private function starts here.
+ */
+
 void
 PowerModel::DoDispose (void)
 {
   NS_LOG_FUNCTION (this);
 }
 
+/*
+ * Protected function starts here.
+ */
 
+void
+PowerModel::NotifyAppRun (void)
+{
+  NS_LOG_FUNCTION (this);
+  NS_LOG_DEBUG ("PowerModel: NotifyAppRun");
+  // notify all device energy models installed on node
+  // DeviceEnergyModelContainer::Iterator i;
+  // for (i = m_models.Begin (); i != m_models.End (); i++)
+  //   {
+  //     TypeId tid = TypeId ("ns3::CpuEnergyModel");
+  //     NS_LOG_DEBUG ("CpuEnergyModel:Total energy consumption is " <<
+  //                   tid << "J");
+  //     if(tid==(*i)->GetTypeId())
+  //     {
+  //       NS_LOG_DEBUG ("PowerModel: NotifyAppRun");
+  //       (*i)->HandleEnergyDepletion ();
+  //     }
+  //   }
+  Ptr<DeviceEnergyModel> model = m_models.Get(0);
+  model->HandleEnergyDepletion ();
+  
+}
+
+void
+PowerModel::NotifyAppTerminate (void)
+{
+  NS_LOG_FUNCTION (this);
+  NS_LOG_DEBUG ("PowerModel: NotifyAppTerminate");
+  // notify all device energy models installed on node
+  // DeviceEnergyModelContainer::Iterator i;
+  // for (i = m_models.Begin (); i != m_models.End (); i++)
+  //   {
+  //     TypeId tid = TypeId ("ns3::CpuEnergyModel");
+  //     if(tid==(*i)->GetTypeId())
+  //     {
+  //       (*i)->HandleEnergyRecharged ();
+  //     }
+  //   }
+  Ptr<DeviceEnergyModel> model = m_models.Get(0);
+  model->HandleEnergyRecharged ();
+}
 
 } // namespace ns3
