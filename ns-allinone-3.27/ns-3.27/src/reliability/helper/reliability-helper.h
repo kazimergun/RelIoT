@@ -46,7 +46,7 @@ class ReliabilityHelper
 public:
   /**
    * \brief Create a LrWpan helper in an empty state.  By default, a
-   * SingleModelSpectrumChannel is created, with a 
+   * SingleModelSpectrumChannel is created, with a
    * LogDistancePropagationLossModel and a ConstantSpeedPropagationDelayModel.
    *
    * To change the channel type, loss model, or delay model, the Get/Set
@@ -68,8 +68,8 @@ public:
    * \param container a NodeContainer
    * \returns .
    */
-  void Install (NodeContainer c) const;
-  
+  void Install (NodeContainer c);
+
   void SetPowerModel (std::string type,
                        std::string n1 = "", const AttributeValue &v1 = EmptyAttributeValue (),
                        std::string n2 = "", const AttributeValue &v2 = EmptyAttributeValue (),
@@ -91,7 +91,7 @@ public:
                        std::string n7 = "", const AttributeValue &v7 = EmptyAttributeValue (),
                        std::string n8 = "", const AttributeValue &v8 = EmptyAttributeValue (),
                        std::string n9 = "", const AttributeValue &v9 = EmptyAttributeValue ());
- 
+
   void SetTemperatureModel (std::string type,
                        std::string n1 = "", const AttributeValue &v1 = EmptyAttributeValue (),
                        std::string n2 = "", const AttributeValue &v2 = EmptyAttributeValue (),
@@ -117,7 +117,7 @@ public:
   void SetApplication(std::string n0, const DoubleValue &v0, const DoubleValue &v1);
   void SetDeviceType(std::string devicetype);
   void SetAmbientTemperature(double Tenv);
-  
+
 private:
   ObjectFactory m_power; //!< Object factory to create power model objects
   ObjectFactory m_performance; //!< Object factory to create performance model objects
